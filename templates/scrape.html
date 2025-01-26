@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrape Company Content</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        /* Custom animations and hover effects (same as homepage) */
+        .feature-card:hover {
+            transform: scale(1.05);
+            transition: transform 0.3s ease-in-out;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #4338ca, #3730a3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-blue-50 text-gray-900">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md shadow-sm">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="text-2xl font-bold gradient-text">DataUnlock</div>
+            <div class="space-x-6">
+                <a href="/" class="hover:text-blue-600 transition">Home</a>
+                <a href="/#features" class="hover:text-blue-600 transition">Features</a>
+                <a href="/#faq" class="hover:text-blue-600 transition">FAQ</a>
+                <a href="/#contact" class="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition">Contact</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header id="home" class="container mx-auto px-4 pt-24 pb-16 text-center relative">
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-100 to-purple-100 opacity-20 blur-3xl"></div>
+        <h1 class="text-6xl font-bold mb-6 relative z-10 animate__animated animate__fadeInUp">
+            Scrape Company Website to PDF
+        </h1>
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto mb-10 relative z-10 animate__animated animate__fadeInUp animate__delay-1s">
+           Enter a company website URL below to scrape content and download as PDF.
+        </p>
+
+        <div class="animate__animated animate__fadeInUp animate__delay-2s">
+            <form method="post" action="/scrape" class="flex flex-col md:flex-row md:items-center justify-center space-y-4 md:space-y-0 md:space-x-4">
+                <input type="url" id="url" name="url" placeholder="Enter Company Website URL" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full p-3 sm:text-sm border-gray-300 rounded-md text-gray-900" required>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition flex items-center justify-center">
+                    Scrape and Download PDF
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </form>
+             {% if error %}
+                <p class="mt-4 text-red-500">{{ error }}</p>
+             {% endif %}
+        </div>
+
+        <div class="flex justify-center mt-8 animate__animated animate__fadeInUp animate__delay-3s">
+            <a href="http://127.0.0.1:8000/" class="bg-green-600 text-white px-8 py-4 rounded-full text-lg hover:bg-green-700 transition">
+                Create Chatbot
+            </a>
+        </div>
+    </header>
+
+
+    <footer id="contact" class="container mx-auto px-4 py-16 text-center">
+        <div class="mt-12 text-gray-500">
+            © 2024 DataUnlock. All rights reserved.
+        </div>
+    </footer>
+
+    <script>
+        // No smooth scrolling needed on scrape page, but keeping basic interaction for consistency if desired
+        const featureCards = document.querySelectorAll('.feature-card');
+        if(featureCards){ // Check if featureCards exist before applying event listeners.
+            featureCards.forEach(card => {
+                card.addEventListener('mouseenter', () => {
+                    card.classList.add('animate__animated', 'animate__pulse');
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.classList.remove('animate__animated', 'animate__pulse');
+                });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataUnlock Gemini Live Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <!-- No need for Material Design CSS, Tailwind will be used -->
+
+    <style>
+        /* Removed Material Design CSS link and custom styles, Tailwind will handle styling */
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="text-xl font-semibold text-gray-800">DataUnlock </div>
+            <!-- You can add navigation links here if needed, like in your sample UI -->
+        </div>
+    </nav>
+
+    <main class="container mx-auto mt-8 p-6">
+        <div class="flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-10">
+
+            <!-- Left Side: Voice Control and Buttons -->
+            <div class="w-full md:w-1/4 flex flex-col items-center">
+                <div class="mb-4">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Voice Control</h2>
+                    <div class="flex space-x-2">
+                        <button id="startButton"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full focus:outline-none focus:shadow-outline">
+                            <i class="material-icons">mic</i> Start
+                        </button>
+                        <button id="stopButton"
+                            class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full focus:outline-none focus:shadow-outline">
+                            <i class="material-icons">mic_off</i> Stop
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PDF Upload -->
+                <div class="mb-4 w-full">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Upload PDF</h2>
+                    <input type="file" id="pdfInput" accept="application/pdf"
+                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" >
+                </div>
+
+                <!-- Show Knowledge Base Button -->
+                <div>
+                    <button id="showPdfButton"
+                        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full focus:outline-none focus:shadow-outline">
+                        Show Knowledge Base
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Right Side: PDF Preview and Chat Log -->
+            <div class="w-full md:w-3/4 flex flex-col">
+                <!-- PDF Container -->
+                <div id="pdf-container" class="mb-6 hidden shadow-lg rounded-xl overflow-hidden">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2 px-4 py-2 bg-gray-100 border-b border-gray-200">Knowledge Base Preview</h2>
+                    <embed id="pdfPreview" type="application/pdf" style="width:100%; height:600px;"/>
+                </div>
+
+                <!-- Chat Log -->
+                <div id="chatLog" class="bg-gray-100 border border-gray-300 rounded-md p-4 h-[560px] overflow-y-auto shadow-md">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2 border-b pb-2">Chat Log</h2>
+                    <!-- Chat messages will be appended here -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-gray-100 py-6 text-center text-gray-500 mt-8 border-t border-gray-200">
+        © 2024 DataUnlock. All rights reserved.
+    </footer>
+
+    <script defer>
+        const URL = "ws://localhost:9084";
+        let currentFrameB64;
+        let webSocket = null;
+        let audioContext = null;
+        let mediaRecorder = null;
+        let processor = null;
+        let pcmData = [];
+        let interval = null;
+        let initialized = false;
+        let audioInputContext;
+        let workletNode;
+
+        // Add PDF handling
+        const pdfInput = document.getElementById('pdfInput');
+        const pdfPreview = document.getElementById('pdfPreview');
+        const pdfContainer = document.getElementById('pdf-container');
+        const showPdfButton = document.getElementById('showPdfButton');
+        const chatLogDiv = document.getElementById('chatLog'); // Get chatLog div for appending messages
+
+
+        window.addEventListener("load", async () => {
+            pdfInput.addEventListener('change', async (event) => {
+                console.log("pdfInput change event detected!");
+                const file = event.target.files[0];
+
+                 if (file && file.type === 'application/pdf') {
+                      const reader = new FileReader();
+
+                      reader.onload = (e) => {
+                          pdfPreview.setAttribute('src', e.target.result);
+                          // pdfContainer.style.display = 'block'; // PDF Container will be shown by button now
+                          console.log('pdf rendered');
+
+                           // Convert to base64 and send immediately
+                         const base64Reader = new FileReader();
+                           base64Reader.onload = function(e){
+                            try{
+                                    const base64PDF = e.target.result.split(',')[1];
+                                    sendPDFMessage(base64PDF, file.name);
+                                }
+                                catch (err){
+                                    console.error("error processing pdf file", err)
+                                }
+
+                            };
+                           base64Reader.onerror = (err) => {
+                                console.error("error reading pdf file", err);
+                            }
+                            base64Reader.readAsDataURL(file);
+                      };
+                      reader.readAsDataURL(file);
+
+
+                    } else {
+                        alert('Please select a valid PDF file.');
+                        pdfContainer.classList.add('hidden'); // Hide PDF container if not PDF
+                        pdfInput.value = ""; // Clear the file input
+                        pdfPreview.removeAttribute('src');
+                        console.warn("no pdf file detected");
+                    }
+
+            });
+
+            showPdfButton.addEventListener('click', () => {
+                pdfContainer.classList.toggle('hidden'); // Toggle PDF visibility on button click
+            });
+
+
+            await initializeAudioContext();
+            connect();
+        });
+
+
+        function connect() {
+            console.log("connecting: ", URL);
+
+            webSocket = new WebSocket(URL);
+
+            webSocket.onclose = (event) => {
+                console.log("websocket closed: ", event);
+                alert("Connection closed");
+            };
+
+            webSocket.onerror = (event) => {
+                console.log("websocket error: ", event);
+            };
+
+            webSocket.onopen = (event) => {
+                console.log("websocket open: ", event);
+                sendInitialSetupMessage();
+            };
+
+            webSocket.onmessage = receiveMessage;
+        }
+
+        function sendInitialSetupMessage() {
+
+            console.log("sending setup message");
+            setup_client_message = {
+                setup: {
+                    generation_config: { response_modalities: ["AUDIO"] },
+                },
+            };
+
+            webSocket.send(JSON.stringify(setup_client_message));
+        }
+
+        function sendPDFMessage(base64PDF, filename) {
+            try {
+                if (webSocket == null) {
+                    console.log("websocket not initialized");
+                    return;
+                }
+
+                const payload = {
+                    realtime_input: {
+                        media_chunks: [{
+                            mime_type: "application/pdf",
+                            data: base64PDF,
+                            filename: filename
+                        }]
+                    },
+                };
+
+                webSocket.send(JSON.stringify(payload));
+                console.log("PDF data sent immediately");
+            } catch (err) {
+                console.error("Error sending PDF message:", err);
+            }
+        }
+
+        function sendVoiceMessage(b64PCM) {
+            try {
+                if (webSocket == null) {
+                    console.log("websocket not initialized");
+                    return;
+                }
+
+                payload = {
+                    realtime_input: {
+                        media_chunks: [{
+                            mime_type: "audio/pcm",
+                            data: b64PCM,
+                        }]
+                    },
+                };
+
+                webSocket.send(JSON.stringify(payload));
+                console.log("sent payload with audio data");
+            }
+            catch (err) {
+                console.error("Error sending audio message:", err);
+            }
+
+        }
+
+        function receiveMessage(event) {
+            try {
+                const messageData = JSON.parse(event.data);
+
+                // Check if the message is a function response and contains 'result'
+                if (messageData && messageData[0] && messageData[0].response && messageData[0].response.result) {
+                    const backendResultText = messageData[0].response.result;
+                    displayMessage("Backend Result: " + backendResultText); // Display backend result
+                } else {
+                    const response = new Response(messageData);
+
+                    if (response.text) {
+                        displayMessage("GEMINI: " + response.text);
+                    }
+                    if (response.audioData) {
+                        injestAudioChuckToPlay(response.audioData);
+                    }
+                }
+
+            }
+            catch (err) {
+                console.error("Error receiving message:", err);
+            }
+        }
+
+        async function initializeAudioContext() {
+            if (initialized) return;
+
+            audioInputContext = new (window.AudioContext ||
+                window.webkitAudioContext)({
+                sampleRate: 24000
+            });
+            await audioInputContext.audioWorklet.addModule("pcm-processor.js");
+            workletNode = new AudioWorkletNode(audioInputContext, "pcm-processor");
+            workletNode.connect(audioInputContext.destination);
+            initialized = true;
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function convertPCM16LEToFloat32(pcmData) {
+            const inputArray = new Int16Array(pcmData);
+            const float32Array = new Float32Array(inputArray.length);
+
+            for (let i = 0; i < inputArray.length; i++) {
+                float32Array[i] = inputArray[i] / 32768;
+            }
+
+            return float32Array;
+        }
+
+        async function injestAudioChuckToPlay(base64AudioChunk) {
+            try {
+                if (audioInputContext.state === "suspended") {
+                    await audioInputContext.resume();
+                }
+                const arrayBuffer = base64ToArrayBuffer(base64AudioChunk);
+                const float32Data = convertPCM16LEToFloat32(arrayBuffer);
+
+                workletNode.port.postMessage(float32Data);
+            }
+            catch (error) {
+                console.error("Error processing audio chunk:", error);
+            }
+        }
+
+        function recordChunk() {
+            const buffer = new ArrayBuffer(pcmData.length * 2);
+            const view = new DataView(buffer);
+            pcmData.forEach((value, index) => {
+                view.setInt16(index * 2, value, true);
+            });
+
+            const base64 = btoa(
+                String.fromCharCode.apply(null, new Uint8Array(buffer))
+            );
+
+            sendVoiceMessage(base64);
+            pcmData = [];
+        }
+
+        async function startAudioInput() {
+            audioContext = new AudioContext({
+                sampleRate: 16000,
+            });
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    sampleRate: 16000,
+                },
+            });
+
+            const source = audioContext.createMediaStreamSource(stream);
+            processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+            processor.onaudioprocess = (e) => {
+                const inputData = e.inputBuffer.getChannelData(0);
+                const pcm16 = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    pcm16[i] = inputData[i] * 0x7fff;
+                }
+                pcmData.push(...pcm16);
+            };
+
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            interval = setInterval(recordChunk, 3000);
+        }
+
+        function stopAudioInput() {
+            if (processor) {
+                processor.disconnect();
+            }
+            if (audioContext) {
+                audioContext.close();
+            }
+
+            clearInterval(interval);
+        }
+
+        function displayMessage(message) {
+            console.log(message);
+            addParagraphToDiv("chatLog", message);
+        }
+
+        function addParagraphToDiv(divId, text) {
+            const newParagraph = document.createElement("p");
+            newParagraph.textContent = text;
+            const div = document.getElementById(divId);
+            div.appendChild(newParagraph);
+            div.scrollTop = div.scrollHeight; // Auto-scroll to bottom
+        }
+
+        startButton.addEventListener('click', startAudioInput);
+        stopButton.addEventListener('click', stopAudioInput);
+
+        class Response {
+            constructor(data) {
+                this.text = null;
+                this.audioData = null;
+                this.endOfTurn = null;
+
+                if (data.text) {
+                    this.text = data.text
+                }
+
+                if (data.audio) {
+                    this.audioData = data.audio;
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
