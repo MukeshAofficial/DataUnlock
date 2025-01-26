@@ -25,3 +25,24 @@
 ## 🚧 Challenges Solved
 - Eliminates the high cost of custom chatbot development (usually $500+ per bot).
 - Works seamlessly even with websites containing incomplete or variable data.
+
+# 🛠 Setup
+
+# Step 1: Clone the Repository
+
+
+# Step 2: Install Requirements
+pip install -r requirements.txt
+
+# Step 3: Run main.py to initialize the project
+python main.py
+
+# Step 4: Start a Local HTTP Server in a new terminal
+python -m http.server
+
+# Step 5: Run the Flask App in another terminal
+python app.py
+
+# Step 6: Access the Application
+# Open your browser and go to:
+http://localhost:5000
